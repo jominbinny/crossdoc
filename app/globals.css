@@ -10,5 +10,5 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; background: #ffffff; color: #171717; font-family: Arial, Helvetica, sans-serif; }
 button, a { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, a:focus-visible { outline: 3px solid #79dc55; outline-offset: 3px; }
-::selection { background: #79dc55; color: #171717; }
+button:focus-visible, a:focus-visible { outline: 3px solid #8abf78; outline-offset: 3px; }
+::selection { background: #d9e6d4; color: #253129; }
