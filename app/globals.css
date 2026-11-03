@@ -4,11 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root { color-scheme: light; --background: #a7f3c0; --foreground: #073b35; --border: rgba(7,59,53,.15); --radius: 1rem; }
+:root { color-scheme: light; --background: #fffaf3; --foreground: #2b0a17; --border: rgba(0,0,0,.1); --radius: 1rem; }
 @theme inline { --color-background: var(--background); --color-foreground: var(--foreground); --color-border: var(--border); }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; background: #a7f3c0; color: #073b35; font-family: Arial, Helvetica, sans-serif; }
+body { margin: 0; background: #fffaf3; color: #2b0a17; font-family: Arial, Helvetica, sans-serif; }
+h1, h2, h3 { font-family: Impact, "Arial Black", Arial, Helvetica, sans-serif; font-weight: 900; }
 button, a { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, a:focus-visible { outline: 3px solid #e78bc8; outline-offset: 3px; }
-::selection { background: #e9a9d4; color: #073b35; }
+button:focus-visible, a:focus-visible { outline: 3px solid #8abf78; outline-offset: 3px; }
+::selection { background: #f7d5c7; color: #2b0a17; }
