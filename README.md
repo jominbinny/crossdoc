@@ -11,7 +11,7 @@ pnpm dev
 
 ## Architecture
 
-The current prototype is intentionally frontend-only. `app/page.tsx` contains the reusable layout, upload flow, success state, and recipient route handling. The upload UI validates supported file extensions and size, then simulates progress in memory. QR codes are generated with `qrcode.react` and downloads create a local browser Blob.
+`app/page.tsx` contains the reusable layout, upload flow, success state, and recipient route handling. The frontend remains a prototype and has not yet been wired to the backend. The first backend seam is the `create-upload` Supabase Edge Function, which creates a temporary upload authorization without exposing privileged credentials.
 
 ## Mock behavior
 
@@ -20,9 +20,27 @@ The current prototype is intentionally frontend-only. `app/page.tsx` contains th
 - The `/s/[token]` experience demonstrates a recipient flow with a locally generated demo PDF and one-time claimed state.
 - No sensitive file or token data is written to `localStorage`.
 
-## Supabase integration seam
+## Supabase backend
 
-When the backend is added, extract the current actions into a `documentService` interface with `uploadDocument`, `getDocument`, `claimDownload`, `generateShareLink`, and `deleteDocument`. Replace the in-memory upload callback with a Supabase Storage upload, PostgreSQL metadata record, and Edge Function for atomic download claims and expiry cleanup. Keep the UI states (`ready`, `claimed`, `expired`, `invalid`) unchanged so the frontend does not need a major rewrite.
+Apply the schema and private Storage bucket before serving the function:
+
+```bash
+npx supabase db push
+npx supabase functions serve create-upload --no-verify-jwt --env-file .env
+```
+
+Configure `SUPABASE_SECRET_KEYS` through Supabase-managed function secrets and set `CORS_ALLOWED_ORIGINS` to one or more comma-separated deployed frontend origins. `http://localhost:3000` and `http://127.0.0.1:3000` are always allowed for local development. The client-facing functions accept JSON POST bodies and return their existing one-time token or signed URL responses; they never expose privileged credentials.
+
+Local smoke test:
+
+```bash
+curl -i http://127.0.0.1:54321/functions/v1/create-upload \
+  -H 'Content-Type: application/json' \
+  -H 'Origin: http://127.0.0.1:3000' \
+  --data '{"filename":"notes.pdf","mimeType":"application/pdf","fileSize":1024}'
+```
+
+Do not deploy until the migration has been applied, the local function serves successfully, and invalid MIME types, files over 50 MiB, duplicate `Idempotency-Key` requests, CORS failures, and rate limiting have been exercised.
 
 ## Functional checklist
 
