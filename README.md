@@ -1,47 +1,43 @@
 # CrossDoc
 
-A polished frontend prototype for temporary document sharing: upload a file, generate a one-time link, and download it on another device.
+CrossDoc is a temporary document-sharing service for moving files between devices without requiring user accounts. Upload a supported document, share the generated link or QR code, and download it from another device.
 
-## Setup
+## Overview
 
-```bash
-pnpm install
-pnpm dev
-```
+CrossDoc is designed around a simple, short-lived transfer workflow:
 
-## Architecture
+1. Select a document from a device.
+2. Generate a temporary share link.
+3. Open the link on another device and claim the download.
 
-`app/page.tsx` contains the reusable layout, upload flow, success state, and recipient route handling. The frontend remains a prototype and has not yet been wired to the backend. The first backend seam is the `create-upload` Supabase Edge Function, which creates a temporary upload authorization without exposing privileged credentials.
+Share links are intended for one successful download claim and expire automatically. Files are stored privately, and downloads are delivered through time-limited signed URLs.
 
-## Mock behavior
+## Core capabilities
 
-- Links use a generated token and are marked clearly as prototype links.
-- The selected `File` object stays in the current browser session only; another device cannot access it yet.
-- The `/s/[token]` experience demonstrates a recipient flow with a locally generated demo PDF and one-time claimed state.
-- No sensitive file or token data is written to `localStorage`.
+- Account-free document sharing
+- Support for PDF, DOCX, XLSX, PPTX, TXT, PNG, JPG, and JPEG files
+- Drag-and-drop and device file selection
+- Temporary share links with expiry
+- QR codes for cross-device transfers
+- One-time download claims
+- Private Supabase Storage-backed file handling
+- Automated cleanup of expired and claimed files
+- Responsive interface for mobile and desktop
+- Privacy Policy and Terms of Service pages
 
-## Supabase backend
+## Technology
 
-Apply the schema and private Storage bucket before serving the function:
+CrossDoc is built with:
 
-```bash
-npx supabase db push
-npx supabase functions serve create-upload --no-verify-jwt --env-file .env
-```
+- Next.js and React
+- TypeScript
+- Tailwind CSS
+- Supabase Database, Storage, and Edge Functions
+- Framer Motion
+- Lucide React
 
-Configure `SUPABASE_SECRET_KEYS` through Supabase-managed function secrets and set `CORS_ALLOWED_ORIGINS` to one or more comma-separated deployed frontend origins. `http://localhost:3000` and `http://127.0.0.1:3000` are always allowed for local development. The client-facing functions accept JSON POST bodies and return their existing one-time token or signed URL responses; they never expose privileged credentials.
+The Next.js App Router contains the public homepage, legal pages, and recipient download route. Supabase Edge Functions provide the upload authorization, upload finalization, download claim, and cleanup services.
 
-Local smoke test:
+## Project focus
 
-```bash
-curl -i http://127.0.0.1:54321/functions/v1/create-upload \
-  -H 'Content-Type: application/json' \
-  -H 'Origin: http://127.0.0.1:3000' \
-  --data '{"filename":"notes.pdf","mimeType":"application/pdf","fileSize":1024}'
-```
-
-Do not deploy until the migration has been applied, the local function serves successfully, and invalid MIME types, files over 50 MiB, duplicate `Idempotency-Key` requests, CORS failures, and rate limiting have been exercised.
-
-## Functional checklist
-
-Drag/drop, browse, validation, upload progress, link generation, clipboard copy, QR generation, reset, responsive navigation, smooth anchor navigation, one-time download simulation, and responsive states are implemented.
+CrossDoc prioritizes fast transfers, minimal friction, temporary storage, and privacy-conscious defaults. It does not require accounts, make uploaded files publicly browsable, or claim end-to-end encryption or absolute security.
