@@ -12,6 +12,7 @@ const RATE_WINDOW_MS = 60 * 60 * 1000;
 const BUCKET = "crossdoc-files";
 // Supabase's signed upload token lifetime is currently fixed at two hours.
 const UPLOAD_EXPIRY_SECONDS = 2 * 60 * 60;
+const SHARE_SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])$/;
 
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
@@ -110,6 +111,10 @@ function isValidMimeType(mimeType: unknown): mimeType is string {
   return typeof mimeType === "string" && ALLOWED_MIME_TYPES.has(mimeType);
 }
 
+function isValidShareSlug(slug: unknown): slug is string {
+  return typeof slug === "string" && SHARE_SLUG_PATTERN.test(slug);
+}
+
 function getWindowStart(): string {
   const now = Date.now();
   return new Date(Math.floor(now / RATE_WINDOW_MS) * RATE_WINDOW_MS).toISOString();
@@ -186,7 +191,7 @@ async function handleRequest(request: Request): Promise<Response> {
   if (!body || typeof body !== "object") {
     return jsonResponse({ error: "Request body must be an object" }, 400, origin);
   }
-  const { filename, mimeType, fileSize } = body as Record<string, unknown>;
+  const { filename, mimeType, fileSize, shareSlug } = body as Record<string, unknown>;
   if (!isValidFilename(filename)) {
     return jsonResponse({ error: "filename must be a non-empty filename of 255 characters or fewer" }, 400, origin);
   }
@@ -195,6 +200,11 @@ async function handleRequest(request: Request): Promise<Response> {
   }
   if (!isValidSize(fileSize)) {
     return jsonResponse({ error: "fileSize must be an integer from 1 through 52428800" }, 413, origin);
+  }
+  if (shareSlug !== undefined && shareSlug !== null && !isValidShareSlug(shareSlug)) {
+    return jsonResponse({
+      error: "shareSlug must use 2-40 lowercase letters, numbers, or hyphens and cannot start or end with a hyphen",
+    }, 400, origin);
   }
 
   const admin = createAdminClient();
@@ -216,10 +226,11 @@ async function handleRequest(request: Request): Promise<Response> {
       mime_type: mimeType,
       file_size: fileSize,
       storage_path: storagePath,
+      share_slug: shareSlug ?? null,
       status: "uploading",
       expires_at: expiresAt,
     })
-    .select("id, storage_path, expires_at")
+    .select("id, storage_path, share_slug, expires_at")
     .single();
 
   if (insertError) {
@@ -243,6 +254,7 @@ async function handleRequest(request: Request): Promise<Response> {
 
   return jsonResponse({
     token: rawToken,
+    shareSlug: document.share_slug,
     document: {
       id: document.id,
       filename,

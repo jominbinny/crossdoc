@@ -10,6 +10,7 @@ const BUCKET = "crossdoc-files";
 const DOWNLOAD_EXPIRY_SECONDS = 5 * 60;
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_TOKEN_LENGTH = 512;
+const SHARE_SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])$/;
 
 type Document = {
   id: string;
@@ -143,13 +144,18 @@ async function handleRequest(request: Request): Promise<Response> {
   }
 
   const admin = createAdminClient();
-  const tokenHash = await sha256(parsedToken.token);
+  const lookupColumn = SHARE_SLUG_PATTERN.test(parsedToken.token)
+    ? "share_slug"
+    : "token_hash";
+  const lookupValue = lookupColumn === "share_slug"
+    ? parsedToken.token
+    : await sha256(parsedToken.token);
   const { data: document, error: documentError } = await admin
     .from("documents")
     .select(
       "id, storage_path, original_filename, mime_type, file_size, status, expires_at",
     )
-    .eq("token_hash", tokenHash)
+    .eq(lookupColumn, lookupValue)
     .maybeSingle<Document>();
 
   if (documentError) throw documentError;

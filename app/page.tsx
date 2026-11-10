@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 type DocumentRecord = { name: string; size: string; type: string; token: string; url: string; file?: File }
 
 const allowed = ['pdf', 'docx', 'xlsx', 'pptx', 'txt', 'png', 'jpg', 'jpeg']
+const shareSlugPattern = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])$/
+const shareOrigin = 'https://crossdoc.jomin.dev'
 const formatSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 const makeToken = () => Math.random().toString(36).slice(2, 6) + Math.random().toString(36).slice(2, 6)
 
@@ -36,6 +38,7 @@ function UploadCard({ onUploaded }: { onUploaded: (doc: DocumentRecord) => void 
   const [uploading, setUploading] = useState(false)
   const [stage, setStage] = useState('')
   const [error, setError] = useState('')
+  const [shareSlug, setShareSlug] = useState('')
 
   const allowed = ['pdf', 'docx', 'xlsx', 'pptx', 'txt', 'png', 'jpg', 'jpeg']
 
@@ -71,6 +74,12 @@ function UploadCard({ onUploaded }: { onUploaded: (doc: DocumentRecord) => void 
   const upload = async () => {
     if (!file || uploading) return
 
+    const normalizedSlug = shareSlug.trim().toLowerCase()
+    if (normalizedSlug && !shareSlugPattern.test(normalizedSlug)) {
+      setError('Custom link must use 2-40 lowercase letters, numbers, or hyphens.')
+      return
+    }
+
     setUploading(true)
     setError('')
 
@@ -87,6 +96,7 @@ function UploadCard({ onUploaded }: { onUploaded: (doc: DocumentRecord) => void 
             filename: file.name,
             mimeType,
             fileSize: file.size,
+            ...(normalizedSlug ? { shareSlug: normalizedSlug } : {}),
           },
         })
 
@@ -148,7 +158,7 @@ function UploadCard({ onUploaded }: { onUploaded: (doc: DocumentRecord) => void 
       }
 
       // 4. Generate the real share URL.
-      const shareUrl = `${window.location.origin}/s/${shareToken}`
+      const shareUrl = `${shareOrigin}/s/${uploadData.shareSlug || shareToken}`
 
       onUploaded({
         name: file.name,
@@ -222,6 +232,30 @@ function UploadCard({ onUploaded }: { onUploaded: (doc: DocumentRecord) => void 
               {formatSize(file.size)} · {uploading ? 'Processing' : 'Ready to share'}
             </p>
 
+            <label className="mx-auto mt-5 block max-w-sm text-left">
+              <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.12em] text-[#2b0a17]/55">
+                Custom link (optional)
+              </span>
+              <div className="flex items-center rounded-xl border border-[#2b0a17]/15 bg-white px-3 text-sm">
+                <span className="shrink-0 text-[#2b0a17]/45">/s/</span>
+                <input
+                  value={shareSlug}
+                  onChange={(event) => {
+                    setShareSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                    setError('')
+                  }}
+                  disabled={uploading}
+                  maxLength={40}
+                  placeholder="jomin"
+                  aria-label="Custom link"
+                  className="min-w-0 flex-1 bg-transparent px-1.5 py-3 font-bold outline-none placeholder:text-[#2b0a17]/30"
+                />
+              </div>
+              <span className="mt-1 block text-[11px] text-[#2b0a17]/45">
+                Use lowercase letters, numbers, or hyphens.
+              </span>
+            </label>
+
             {uploading && (
               <div className="mt-6">
                 <div className="mb-2 flex items-center justify-center gap-2 text-xs font-bold">
@@ -244,6 +278,7 @@ function UploadCard({ onUploaded }: { onUploaded: (doc: DocumentRecord) => void 
                   <button
                     onClick={() => {
                       setFile(null)
+                      setShareSlug('')
                       setError('')
                     }}
                     className="flex items-center gap-1 text-sm font-bold text-[#2b0a17]/60 hover:text-[#2b0a17]"
@@ -303,7 +338,7 @@ function UploadCard({ onUploaded }: { onUploaded: (doc: DocumentRecord) => void 
 function SuccessCard({ doc, onReset }: { doc: DocumentRecord; onReset: () => void }) {
   const [copied, setCopied] = useState(false)
   const copy = async () => { await navigator.clipboard?.writeText(doc.url); setCopied(true); window.setTimeout(() => setCopied(false), 1800) }
-  return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="min-w-0 rounded-[28px] border-2 border-[#2b0a17] bg-[#fffaf3] p-5 shadow-[7px_8px_0_#2b0a17] sm:p-7"><div className="mb-6 flex items-center gap-3"><div className="grid size-11 place-items-center rounded-full bg-[#e9f0f3] text-[#2b0a17]"><Check size={22} strokeWidth={3} /></div><div className="min-w-0"><p className="font-black text-[#2b0a17]">Your link is ready</p><p className="truncate text-xs text-[#2b0a17]/55">Your document has been uploaded and verified.</p></div></div><div className="grid min-w-0 gap-4 sm:grid-cols-[minmax(0,1fr)_136px] sm:items-center"><div className="flex min-w-0 items-center gap-3 rounded-2xl border border-[#2b0a17]/15 bg-white p-3"><Link2 size={17} className="shrink-0 text-[#2b0a17]/50" /><span className="min-w-0 flex-1 truncate text-sm font-bold text-[#2b0a17]">{doc.url.replace(window.location.origin, 'crossdoc.app')}</span><button onClick={copy} aria-label="Copy share link" className="shrink-0 rounded-lg p-2 text-[#2b0a17] hover:bg-[#e9f0f3]">{copied ? <Check size={18} /> : <Copy size={18} />}</button></div><div className="mx-auto shrink-0 rounded-xl bg-white p-3"><QRCodeSVG value={doc.url} size={112} fgColor="#2b0a17" bgColor="#ffffff" /></div></div><div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[#2b0a17]/10 pt-5 text-xs font-bold text-[#2b0a17]/60"><span className="flex items-center gap-2"><LockKeyhole size={15} /> Expires in 24 hours · one download</span><button onClick={onReset} className="font-black text-[#2b0a17] underline underline-offset-4">Share another</button></div></motion.div>
+  return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="min-w-0 rounded-[28px] border-2 border-[#2b0a17] bg-[#fffaf3] p-5 shadow-[7px_8px_0_#2b0a17] sm:p-7"><div className="mb-6 flex items-center gap-3"><div className="grid size-11 place-items-center rounded-full bg-[#e9f0f3] text-[#2b0a17]"><Check size={22} strokeWidth={3} /></div><div className="min-w-0"><p className="font-black text-[#2b0a17]">Your link is ready</p><p className="truncate text-xs text-[#2b0a17]/55">Your document has been uploaded and verified.</p></div></div><div className="grid min-w-0 gap-4 sm:grid-cols-[minmax(0,1fr)_136px] sm:items-center"><div className="flex min-w-0 items-center gap-3 rounded-2xl border border-[#2b0a17]/15 bg-white p-3"><Link2 size={17} className="shrink-0 text-[#2b0a17]/50" /><span className="min-w-0 flex-1 truncate text-sm font-bold text-[#2b0a17]">{doc.url.replace(window.location.origin, 'crossdoc.jomin.dev')}</span><button onClick={copy} aria-label="Copy share link" className="shrink-0 rounded-lg p-2 text-[#2b0a17] hover:bg-[#e9f0f3]">{copied ? <Check size={18} /> : <Copy size={18} />}</button></div><div className="mx-auto shrink-0 rounded-xl bg-white p-3"><QRCodeSVG value={doc.url} size={112} fgColor="#2b0a17" bgColor="#ffffff" /></div></div><div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[#2b0a17]/10 pt-5 text-xs font-bold text-[#2b0a17]/60"><span className="flex items-center gap-2"><LockKeyhole size={15} /> Expires in 24 hours · one download</span><button onClick={onReset} className="font-black text-[#2b0a17] underline underline-offset-4">Share another</button></div></motion.div>
 }
 
 function Home() {

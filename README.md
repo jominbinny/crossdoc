@@ -18,6 +18,7 @@ Share links are intended for one successful download claim and expire automatica
 - Support for PDF, DOCX, XLSX, PPTX, TXT, PNG, JPG, and JPEG files
 - Drag-and-drop and device file selection
 - Temporary share links with expiry
+- Optional custom share links such as `/s/jomin`
 - QR codes for cross-device transfers
 - One-time download claims
 - Private Supabase Storage-backed file handling
