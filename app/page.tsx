@@ -14,6 +14,29 @@ const shareOrigin = 'https://crossdoc.jomin.dev'
 const formatSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 const makeToken = () => Math.random().toString(36).slice(2, 6) + Math.random().toString(36).slice(2, 6)
 
+async function getFunctionErrorMessage(
+  error: { message?: string; context?: unknown },
+  fallback: string,
+): Promise<string> {
+  if (error.context instanceof Response) {
+    try {
+      const body: unknown = await error.context.clone().json()
+      if (
+        body &&
+        typeof body === 'object' &&
+        'error' in body &&
+        typeof body.error === 'string'
+      ) {
+        return body.error
+      }
+    } catch {
+      // Fall back to the SDK error when the response is not JSON.
+    }
+  }
+
+  return error.message || fallback
+}
+
 function Logo() {
   return <a href="/" className="flex items-center gap-1.5 text-[19px] font-black tracking-[-0.08em] text-[#2b0a17]" aria-label="CrossDoc home"><span className="italic">cross</span><span className="text-[#ff9f7a]">doc</span></a>
 }
@@ -101,7 +124,17 @@ function UploadCard({ onUploaded }: { onUploaded: (doc: DocumentRecord) => void 
         })
 
       if (createError) {
-        throw new Error(createError.message || 'Unable to create upload.')
+        const message = await getFunctionErrorMessage(
+          createError,
+          normalizedSlug
+            ? 'This custom link is already in use. Please choose a different custom link and try again.'
+            : 'Unable to create upload.',
+        )
+        throw new Error(
+          normalizedSlug && message === 'Duplicate upload request'
+            ? 'This custom link is already in use. Please choose a different custom link and try again.'
+            : message,
+        )
       }
 
       if (

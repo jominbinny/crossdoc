@@ -234,6 +234,11 @@ async function handleRequest(request: Request): Promise<Response> {
     .single();
 
   if (insertError) {
+    if (insertError.code === "23505" && shareSlug) {
+      return jsonResponse({
+        error: "This custom link is already in use. Please choose a different custom link and try again.",
+      }, 409, origin);
+    }
     if (insertError.code === "23505") {
       return jsonResponse({ error: "Duplicate upload request" }, 409, origin);
     }
